@@ -7,9 +7,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
+using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.LinearAlgebra.Double;
+
 namespace MyGrasshopperAssembly2
 {
-    public class MyGrasshopperAssembly2Component : GH_Component
+    public class constructBuilding : GH_Component
     {
         /// <summary>
         /// Each implementation of GH_Component must provide a public 
@@ -18,10 +21,10 @@ namespace MyGrasshopperAssembly2
         /// Subcategory the panel. If you use non-existing tab or panel names, 
         /// new tabs/panels will automatically be created.
         /// </summary>
-        public MyGrasshopperAssembly2Component()
+        public constructBuilding()
           : base("MyGrasshopperAssembly2", "Nickname",
             "Description",
-            "Category", "Subcategory")
+            "NTNU", "PC2023_building")
         {
         }
 
@@ -30,8 +33,8 @@ namespace MyGrasshopperAssembly2
         /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddNumberParameter("i","","",GH_ParamAccess.item) ;
-            pManager.AddBrepParameter("b","","",GH_ParamAccess.item);
+            pManager.AddIntegerParameter("id","i","",GH_ParamAccess.item,0) ;
+            pManager.AddBrepParameter("brep","b","",GH_ParamAccess.item);
         }
 
         /// <summary>
@@ -41,6 +44,7 @@ namespace MyGrasshopperAssembly2
         {
             pManager.AddNumberParameter("o", "", "", GH_ParamAccess.list);
             pManager.AddBrepParameter("ob", "", "", GH_ParamAccess.list);
+            pManager.AddGenericParameter("building", "b", "", GH_ParamAccess.item);
         }
 
         /// <summary>
@@ -50,10 +54,10 @@ namespace MyGrasshopperAssembly2
         /// to store data in output parameters.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            double x=0;
+            int id=0;
             Brep brep = new Brep();
 
-            DA.GetData(0, ref x);
+            DA.GetData(0, ref id);
             DA.GetData(1, ref brep);
             //code to sort brep faces 
             Dictionary<BrepFace, double> dictionaryWithFaces = new Dictionary<BrepFace, double>();
@@ -91,21 +95,30 @@ namespace MyGrasshopperAssembly2
 
             //make intersection of brep and plane
             List<Brep> flatFloors = new List<Brep>();
+            List<FloorClass> floors = new List<FloorClass>();
+
+            int floorID = 0;
             foreach (var pl in floorPlanes)
             {
                 Curve[] iCrvs;
                 Point3d[] iPts;
                 Intersection.BrepPlane(brep, pl, 0.00001, out iCrvs, out iPts);
-                flatFloors.Add(Brep.CreatePlanarBreps(iCrvs)[0]);
+                Brep floorBrep = Brep.CreatePlanarBreps(iCrvs)[0];
+                flatFloors.Add(floorBrep);
+                floors.Add(new FloorClass("flat floor", floorID, floorBrep, pl.OriginZ ));
+                floorID++;
             }
+
+
             List<double> extremeZ = new List<double>() { minZ, maxZ };
             //end of the code
 
-                
+            BuildingClass building = new BuildingClass(id, floors);
             //Rhino.Geometry.Intersect.Intersection.BrepPlane();
 
             DA.SetDataList(0, extremeZ);
             DA.SetDataList(1, flatFloors);
+            DA.SetData(2, building);
 
         }
 
@@ -115,8 +128,15 @@ namespace MyGrasshopperAssembly2
         /// You can add image files to your project resources and access them like this:
         /// return Resources.IconForThisComponent;
         /// </summary>
-        protected override System.Drawing.Bitmap Icon => null;
-
+        protected override System.Drawing.Bitmap Icon
+        {
+            get
+            {
+                //You can add image files to your project resources and access them like this:
+                // return Resources.IconForThisComponent;
+                return MyGrasshopperAssembly2.Properties.Resources.icon_building;
+            }
+        }
         /// <summary>
         /// Each component must have a unique Guid to identify it. 
         /// It is vital this Guid doesn't change otherwise old ghx files 
